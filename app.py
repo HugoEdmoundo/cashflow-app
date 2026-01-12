@@ -1,10 +1,12 @@
+import os
+import sys
 from flask import Flask, render_template, request, redirect, flash, session, send_file
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import pandas as pd
 
 app = Flask(__name__)
-app.secret_key = 'cashflow-pro-secret-key-2024'
+app.secret_key = os.environ.get('SECRET_KEY', 'cashflow-pro-default-key-2026')
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # ========== HELPER FUNCTIONS ==========
@@ -589,9 +591,25 @@ def internal_server_error(e):
     flash('Terjadi kesalahan pada server', 'error')
     return redirect('/')
 
+
+# ========== ERROR HANDLERS ==========
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    session.clear()
+    return render_template('500.html'), 500
+
 # ========== MAIN ==========
 
 # ========== PRODUCTION CONFIG ==========
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5050))
-    app.run(host='0.0.0.0', port=port)
+    # Untuk production, gunakan environment variable PORT
+    port = int(os.environ.get('PORT', 5000))
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=os.environ.get('FLASK_ENV') == 'development'
+    )
