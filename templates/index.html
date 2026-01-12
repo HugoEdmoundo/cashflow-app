@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold">Personal Cashflow</h1>
+    <p class="text-slate-500">Monitoring pemasukan & pengeluaran</p>
+</div>
+
+<!-- KPI -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow">
+        <p class="text-sm text-slate-500">Saldo Cash</p>
+        <p class="text-3xl font-semibold text-emerald-600">
+            Rp {{ "{:,.2f}".format(cash_total) }}
+        </p>
+    </div>
+    <div class="bg-white p-6 rounded-xl shadow">
+        <p class="text-sm text-slate-500">Saldo Non-Cash</p>
+        <p class="text-3xl font-semibold text-blue-600">
+            Rp {{ "{:,.2f}".format(non_cash_total) }}
+        </p>
+    </div>
+</div>
+
+<!-- Form Input -->
+<div class="bg-white p-6 rounded-xl shadow mb-8">
+    <h3 class="font-semibold mb-4">Tambah Transaksi</h3>
+    <form method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <input name="description" placeholder="Description"
+               class="border rounded px-3 py-2" required>
+
+        <select name="category" class="border rounded px-3 py-2">
+            <option value="cash">Cash</option>
+            <option value="non cash">Non-Cash</option>
+        </select>
+
+        <select name="transaction" class="border rounded px-3 py-2">
+            <option value="income">Income</option>
+            <option value="expenditure">Expenditure</option>
+        </select>
+
+        <input type="number" step="0.01" name="amount"
+               placeholder="Amount" class="border rounded px-3 py-2" required>
+
+        <button class="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2">
+            Save
+        </button>
+    </form>
+</div>
+
+<!-- Chart -->
+<div class="bg-white p-6 rounded-xl shadow mb-8">
+    <h3 class="font-semibold mb-4">Cash vs Non-Cash</h3>
+    <canvas id="chart"></canvas>
+</div>
+
+<script>
+new Chart(document.getElementById("chart"), {
+    type: "bar",
+    data: {
+        labels: ["Cash", "Non-Cash"],
+        datasets: [{
+            label: "Saldo",
+            data: [{{ cash_total }}, {{ non_cash_total }}],
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+</script>
+
+<!-- Actions -->
+<div class="flex gap-3 mb-4">
+    <a href="/export/excel"
+       class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+        Export Excel
+    </a>
+    <a href="/export/pdf"
+       class="px-4 py-2 bg-rose-600 text-white rounded hover:bg-rose-700">
+        Export PDF
+    </a>
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl shadow overflow-x-auto">
+<table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600">
+    <tr>
+        <th class="p-3 text-left">Date</th>
+        <th class="p-3 text-left">Description</th>
+        <th class="p-3">Category</th>
+        <th class="p-3">Income</th>
+        <th class="p-3">Expense</th>
+        <th class="p-3">Cash</th>
+        <th class="p-3">Non-Cash</th>
+        <th class="p-3">Action</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for r in records %}
+    <tr class="border-t hover:bg-slate-50">
+        <td class="p-3">{{ r.date.strftime('%Y-%m-%d') }}</td>
+        <td class="p-3">{{ r.description }}</td>
+        <td class="p-3 text-center">{{ r.category }}</td>
+        <td class="p-3 text-center text-emerald-600">
+            {{ r.amount if r.transaction=='income' else '' }}
+        </td>
+        <td class="p-3 text-center text-rose-600">
+            {{ r.amount if r.transaction=='expenditure' else '' }}
+        </td>
+        <td class="p-3 text-center">{{ r.saldo_cash }}</td>
+        <td class="p-3 text-center">{{ r.saldo_non_cash }}</td>
+        <td class="p-3 text-center space-x-2">
+            <a href="/edit/{{ r.id }}" class="text-blue-600 hover:underline">Edit</a>
+            <a href="/delete/{{ r.id }}" class="text-rose-600 hover:underline">Delete</a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% endblock %}
