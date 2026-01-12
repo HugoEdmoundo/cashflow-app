@@ -6,8 +6,17 @@ from io import BytesIO
 import pandas as pd
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'cashflow-pro-default-key-2026')
+app.secret_key = os.environ.get('SECRET_KEY', 'cashflow-pro-vercel-' + str(os.urandom(26).hex()))
 app.config['SESSION_TYPE'] = 'filesystem'
+
+
+# Workaround untuk Vercel Python 3.9 compatibility
+try:
+    import numpy as np
+    print(f"NumPy version: {np.__version__}")
+except ImportError as e:
+    print(f"NumPy import error: {e}")
+    pass
 
 # ========== HELPER FUNCTIONS ==========
 
