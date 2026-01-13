@@ -1,78 +1,126 @@
-import os
-import sys
-from flask import Flask, render_template, request, redirect, flash, session, send_file
-from datetime import datetime, timezone, timedelta
+from flask import Flask, render_template, request, redirect, flash, send_file, g
+from datetime import datetime, timedelta
 from io import BytesIO
 import pandas as pd
+import sqlite3
+import os
+from contextlib import closing
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'cashflow-pro-vercel-' + str(os.urandom(26).hex()))
-app.config['SESSION_TYPE'] = 'filesystem'
+app.secret_key = 'cashflow-pro-secret-key-2024'
+app.config['DATABASE'] = 'cashflow.db'
 
+# ========== DATABASE FUNCTIONS ==========
 
-# Workaround untuk Vercel Python 3.9 compatibility
-try:
-    import numpy as np
-    print(f"NumPy version: {np.__version__}")
-except ImportError as e:
-    print(f"NumPy import error: {e}")
-    pass
+def get_db():
+    """Get database connection with proper connection management"""
+    if 'db' not in g:
+        db_path = os.path.join(os.path.dirname(__file__), app.config['DATABASE'])
+        g.db = sqlite3.connect(db_path)
+        g.db.row_factory = sqlite3.Row
+        # Set timeout to handle concurrent access
+        g.db.execute('PRAGMA busy_timeout = 5000')
+        g.db.execute('PRAGMA journal_mode = WAL')  # Write-Ahead Logging for better concurrency
+    return g.db
+
+@app.teardown_appcontext
+def close_db(error):
+    """Close database connection at the end of request"""
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+def init_database():
+    """Initialize database tables"""
+    with app.app_context():
+        db = get_db()
+        
+        # Create transactions table
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT NOT NULL,
+                category TEXT NOT NULL,
+                transaction_type TEXT NOT NULL,
+                amount REAL NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create settings table for next_id
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+        
+        # Initialize next_id if not exists
+        db.execute('''
+            INSERT OR IGNORE INTO settings (key, value) 
+            VALUES ('next_id', '1')
+        ''')
+        
+        db.commit()
 
 # ========== HELPER FUNCTIONS ==========
 
 def get_current_datetime():
-    """Get current datetime in UTC timezone"""
-    return datetime.now(timezone.utc)
+    """Get current datetime"""
+    return datetime.now()
 
-def parse_datetime(dt_string):
-    """Parse datetime string to timezone-aware datetime"""
-    if isinstance(dt_string, datetime):
-        if dt_string.tzinfo is None:
-            return dt_string.replace(tzinfo=timezone.utc)
-        return dt_string
-    
+def format_datetime_for_display(dt_str):
+    """Format datetime string for display"""
     try:
-        # Try parsing ISO format
-        dt = datetime.fromisoformat(dt_string)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except:
-        # If parsing fails, return current datetime
-        return get_current_datetime()
+        if isinstance(dt_str, str):
+            # Remove timezone info if present
+            if 'T' in dt_str:
+                dt_str = dt_str.split('T')[0] + ' ' + dt_str.split('T')[1].split('+')[0]
+            dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+        else:
+            dt = dt_str
+        
+        # Format to Indonesian format
+        return dt.strftime('%d/%m/%Y %H:%M')
+    except Exception as e:
+        print(f"Error formatting datetime: {e}")
+        return dt_str
 
-def format_datetime_for_display(dt):
-    """Format datetime for display"""
-    if isinstance(dt, str):
-        dt = parse_datetime(dt)
-    
-    # Convert to local timezone (UTC+7 for Indonesia)
-    local_tz = timezone(timedelta(hours=7))
-    local_dt = dt.astimezone(local_tz)
-    
-    return local_dt.strftime('%d/%m/%Y %H:%M')
-
-def format_datetime_short(dt):
+def format_datetime_short(dt_str):
     """Format datetime for short display"""
-    if isinstance(dt, str):
-        dt = parse_datetime(dt)
-    
-    local_tz = timezone(timedelta(hours=7))
-    local_dt = dt.astimezone(local_tz)
-    
-    return local_dt.strftime('%d/%m/%Y')
+    try:
+        if isinstance(dt_str, str):
+            # Remove timezone info if present
+            if 'T' in dt_str:
+                dt_str = dt_str.split('T')[0]
+            dt = datetime.strptime(dt_str, '%Y-%m-%d')
+        else:
+            dt = dt_str
+        
+        return dt.strftime('%d/%m/%Y')
+    except:
+        return dt_str
 
-def init_session():
-    """Initialize session data if not exists"""
-    if 'transactions' not in session:
-        session['transactions'] = []
-    if 'next_id' not in session:
-        session['next_id'] = 1
+def get_next_id():
+    """Get next transaction ID"""
+    db = get_db()
+    result = db.execute('SELECT value FROM settings WHERE key = ?', ('next_id',)).fetchone()
+    if result:
+        return int(result['value'])
+    return 1
+
+def update_next_id(new_id):
+    """Update next transaction ID"""
+    db = get_db()
+    db.execute('UPDATE settings SET value = ? WHERE key = ?', (str(new_id), 'next_id'))
+    db.commit()
 
 def calculate_totals():
     """Calculate all financial totals from transactions"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
+    
+    # Get all transactions
+    transactions = db.execute('SELECT * FROM transactions ORDER BY created_at DESC').fetchall()
     
     total_transactions = len(transactions)
     
@@ -84,15 +132,17 @@ def calculate_totals():
     
     # Calculate by category and type
     for transaction in transactions:
-        amount = float(transaction['amount'])
+        amount = transaction['amount']
+        category = transaction['category']
+        transaction_type = transaction['transaction_type']
         
-        if transaction['category'] == 'cash':
-            if transaction['transaction'] == 'income':
+        if category == 'cash':
+            if transaction_type == 'income':
                 cash_income += amount
             else:  # expenditure
                 cash_expense += amount
         else:  # non cash
-            if transaction['transaction'] == 'income':
+            if transaction_type == 'income':
                 non_cash_income += amount
             else:  # expenditure
                 non_cash_expense += amount
@@ -131,13 +181,11 @@ def inject_globals():
     totals = calculate_totals()
     
     # Get current time in Indonesia timezone
-    utc_now = datetime.now(timezone.utc)
-    indonesia_tz = timezone(timedelta(hours=7))
-    indonesia_now = utc_now.astimezone(indonesia_tz)
+    now = datetime.now()
     
     return {
-        'current_date': indonesia_now.strftime('%A, %d %B %Y'),
-        'current_time': indonesia_now.strftime('%H:%M'),
+        'current_date': now.strftime('%A, %d %B %Y'),
+        'current_time': now.strftime('%H:%M'),
         'total_count': totals['total_transactions'],
         'cash_balance': totals['cash_balance'],
         'non_cash_balance': totals['non_cash_balance'],
@@ -157,58 +205,55 @@ def inject_globals():
 @app.route('/')
 def dashboard():
     """Dashboard homepage"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
     
     # Get recent transactions (last 5)
-    if transactions:
-        # Sort by date descending
-        sorted_transactions = sorted(
-            transactions,
-            key=lambda x: parse_datetime(x['date']),
-            reverse=True
-        )[:5]
-        
-        # Format dates for display
-        for t in sorted_transactions:
-            t['display_date'] = format_datetime_short(t['date'])
-    else:
-        sorted_transactions = []
+    transactions = db.execute('''
+        SELECT * FROM transactions 
+        ORDER BY created_at DESC 
+        LIMIT 5
+    ''').fetchall()
+    
+    # Format dates for display
+    formatted_transactions = []
+    for t in transactions:
+        t_dict = dict(t)
+        t_dict['display_date'] = format_datetime_short(t['created_at'])
+        formatted_transactions.append(t_dict)
     
     totals = calculate_totals()
     
     return render_template('dashboard.html',
-                         recent_transactions=sorted_transactions,
+                         recent_transactions=formatted_transactions,
                          **totals)
 
 @app.route('/transactions')
 def transactions_page():
     """Transactions management page"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
     
-    # Sort by date descending
-    sorted_transactions = sorted(
-        transactions,
-        key=lambda x: parse_datetime(x['date']),
-        reverse=True
-    )
+    # Get all transactions sorted by date
+    transactions = db.execute('''
+        SELECT * FROM transactions 
+        ORDER BY created_at DESC
+    ''').fetchall()
     
     # Format dates for display
-    for t in sorted_transactions:
-        t['display_date'] = format_datetime_for_display(t['date'])
+    formatted_transactions = []
+    for t in transactions:
+        t_dict = dict(t)
+        t_dict['display_date'] = format_datetime_for_display(t['created_at'])
+        formatted_transactions.append(t_dict)
     
     totals = calculate_totals()
     
     return render_template('transactions.html', 
-                         records=sorted_transactions,
+                         records=formatted_transactions,
                          **totals)
 
 @app.route('/add', methods=['POST'])
 def add_transaction():
     """Add new transaction"""
-    init_session()
-    
     try:
         # Get form data
         description = request.form.get('description', '').strip()
@@ -230,21 +275,19 @@ def add_transaction():
             flash('Jumlah harus berupa angka', 'error')
             return redirect('/transactions')
         
-        # Create transaction object with timezone-aware datetime
-        transaction = {
-            'id': session['next_id'],
-            'description': description,
-            'category': category,
-            'transaction': transaction_type,
-            'amount': amount,
-            'date': get_current_datetime().isoformat()
-        }
+        # Get next ID
+        next_id = get_next_id()
         
-        # Add to session
-        transactions = session.get('transactions', [])
-        transactions.append(transaction)
-        session['transactions'] = transactions
-        session['next_id'] = session['next_id'] + 1
+        db = get_db()
+        # Insert transaction
+        db.execute('''
+            INSERT INTO transactions (id, description, category, transaction_type, amount)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (next_id, description, category, transaction_type, amount))
+        
+        # Update next_id
+        update_next_id(next_id + 1)
+        db.commit()
         
         flash(f'Transaksi "{description}" berhasil ditambahkan', 'success')
         
@@ -256,16 +299,17 @@ def add_transaction():
 @app.route('/edit/<int:id>')
 def edit_transaction(id):
     """Edit transaction page"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
     
     # Find transaction by ID
-    transaction = next((t for t in transactions if t['id'] == id), None)
+    transaction = db.execute('SELECT * FROM transactions WHERE id = ?', (id,)).fetchone()
     
     if transaction:
-        # Format date for display
-        transaction['display_date'] = format_datetime_for_display(transaction['date'])
-        return render_template('edit.html', data=transaction)
+        transaction_dict = dict(transaction)
+        transaction_dict['display_date'] = format_datetime_for_display(transaction['created_at'])
+        # Rename transaction_type to transaction for template compatibility
+        transaction_dict['transaction'] = transaction_dict['transaction_type']
+        return render_template('edit.html', data=transaction_dict)
     
     flash('Transaksi tidak ditemukan', 'error')
     return redirect('/transactions')
@@ -273,8 +317,6 @@ def edit_transaction(id):
 @app.route('/update/<int:id>', methods=['POST'])
 def update_transaction(id):
     """Update existing transaction"""
-    init_session()
-    
     try:
         # Get form data
         description = request.form.get('description', '').strip()
@@ -296,28 +338,17 @@ def update_transaction(id):
             flash('Jumlah harus berupa angka', 'error')
             return redirect('/transactions')
         
-        # Get transactions from session
-        transactions = session.get('transactions', [])
+        db = get_db()
+        # Update transaction
+        result = db.execute('''
+            UPDATE transactions 
+            SET description = ?, category = ?, transaction_type = ?, amount = ?
+            WHERE id = ?
+        ''', (description, category, transaction_type, amount, id))
         
-        # Find and update transaction
-        updated = False
-        for i, t in enumerate(transactions):
-            if t['id'] == id:
-                # Update transaction (keep original date)
-                transactions[i] = {
-                    'id': id,
-                    'description': description,
-                    'category': category,
-                    'transaction': transaction_type,
-                    'amount': amount,
-                    'date': t['date']  # Keep original date
-                }
-                updated = True
-                break
+        db.commit()
         
-        if updated:
-            # Save back to session
-            session['transactions'] = transactions
+        if result.rowcount > 0:
             flash(f'Transaksi "{description}" berhasil diperbarui', 'success')
         else:
             flash('Transaksi tidak ditemukan', 'error')
@@ -330,18 +361,17 @@ def update_transaction(id):
 @app.route('/delete/<int:id>')
 def delete_transaction(id):
     """Delete transaction"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
     
-    # Find transaction to delete
-    transaction_to_delete = next((t for t in transactions if t['id'] == id), None)
+    # Get transaction description before deleting
+    transaction = db.execute('SELECT description FROM transactions WHERE id = ?', (id,)).fetchone()
     
-    if transaction_to_delete:
-        # Remove transaction
-        transactions = [t for t in transactions if t['id'] != id]
-        session['transactions'] = transactions
+    if transaction:
+        # Delete transaction
+        db.execute('DELETE FROM transactions WHERE id = ?', (id,))
+        db.commit()
         
-        flash(f'Transaksi "{transaction_to_delete["description"]}" berhasil dihapus', 'success')
+        flash(f'Transaksi "{transaction["description"]}" berhasil dihapus', 'success')
     else:
         flash('Transaksi tidak ditemukan', 'error')
     
@@ -350,24 +380,29 @@ def delete_transaction(id):
 @app.route('/clear-all')
 def clear_all():
     """Clear all transactions"""
-    session['transactions'] = []
-    session['next_id'] = 1
+    db = get_db()
+    
+    # Delete all transactions
+    db.execute('DELETE FROM transactions')
+    # Reset next_id to 1
+    db.execute('UPDATE settings SET value = ? WHERE key = ?', ('1', 'next_id'))
+    db.commit()
+    
     flash('Semua transaksi berhasil dihapus', 'success')
     return redirect('/')
 
 @app.route('/reports')
 def reports():
     """Reports page"""
-    init_session()
     totals = calculate_totals()
-    
     return render_template('reports.html', **totals)
 
 @app.route('/export/excel')
 def export_excel():
     """Export transactions to Excel"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
+    
+    transactions = db.execute('SELECT * FROM transactions ORDER BY created_at DESC').fetchall()
     
     if not transactions:
         flash('Tidak ada data untuk diexport', 'error')
@@ -377,16 +412,16 @@ def export_excel():
         # Prepare data for DataFrame
         data = []
         for t in transactions:
-            display_date = format_datetime_for_display(t['date'])
+            display_date = format_datetime_for_display(t['created_at'])
             
             data.append({
                 'ID': t['id'],
                 'Tanggal': display_date,
                 'Deskripsi': t['description'],
                 'Kategori': 'Cash' if t['category'] == 'cash' else 'Non-Cash',
-                'Jenis': 'Pemasukan' if t['transaction'] == 'income' else 'Pengeluaran',
+                'Jenis': 'Pemasukan' if t['transaction_type'] == 'income' else 'Pengeluaran',
                 'Jumlah (Rp)': t['amount'],
-                'Status': 'Pemasukan' if t['transaction'] == 'income' else 'Pengeluaran'
+                'Status': 'Pemasukan' if t['transaction_type'] == 'income' else 'Pengeluaran'
             })
         
         # Create DataFrame
@@ -487,8 +522,9 @@ def export_excel():
 @app.route('/export/csv')
 def export_csv():
     """Export transactions to CSV"""
-    init_session()
-    transactions = session.get('transactions', [])
+    db = get_db()
+    
+    transactions = db.execute('SELECT * FROM transactions ORDER BY created_at DESC').fetchall()
     
     if not transactions:
         flash('Tidak ada data untuk diexport', 'error')
@@ -498,14 +534,14 @@ def export_csv():
         # Prepare data
         data = []
         for t in transactions:
-            display_date = format_datetime_for_display(t['date'])
+            display_date = format_datetime_for_display(t['created_at'])
             
             data.append({
                 'ID': t['id'],
                 'Tanggal': display_date,
                 'Deskripsi': t['description'],
                 'Kategori': 'Cash' if t['category'] == 'cash' else 'Non-Cash',
-                'Jenis': 'Pemasukan' if t['transaction'] == 'income' else 'Pengeluaran',
+                'Jenis': 'Pemasukan' if t['transaction_type'] == 'income' else 'Pengeluaran',
                 'Jumlah': t['amount']
             })
         
@@ -535,58 +571,58 @@ def export_csv():
 @app.route('/sample-data')
 def sample_data():
     """Add sample data for testing"""
-    init_session()
+    try:
+        db = get_db()
+        
+        # Check if we already have sample data
+        existing = db.execute('SELECT COUNT(*) as count FROM transactions').fetchone()
+        
+        if existing['count'] == 0:
+            # Get current datetime
+            now = get_current_datetime()
+            
+            # Sample transactions
+            sample_transactions = [
+                (1, 'Gaji Bulanan', 'cash', 'income', 5000000, now - timedelta(days=30)),
+                (2, 'Bayar Listrik', 'non cash', 'expenditure', 750000, now - timedelta(days=25)),
+                (3, 'Freelance Project', 'non cash', 'income', 3000000, now - timedelta(days=20)),
+                (4, 'Belanja Bulanan', 'cash', 'expenditure', 1200000, now - timedelta(days=15)),
+                (5, 'Investasi Saham', 'non cash', 'income', 2000000, now - timedelta(days=10))
+            ]
+            
+            # Insert sample data
+            db.executemany('''
+                INSERT INTO transactions (id, description, category, transaction_type, amount, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', sample_transactions)
+            
+            # Update next_id
+            db.execute('UPDATE settings SET value = ? WHERE key = ?', ('6', 'next_id'))
+            db.commit()
+            
+            flash('Sample data berhasil ditambahkan', 'success')
+        else:
+            flash('Data sudah ada, sample data tidak ditambahkan', 'info')
     
-    # Get current datetime
-    now = get_current_datetime()
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
     
-    sample_transactions = [
-        {
-            'id': 1,
-            'description': 'Gaji Bulanan',
-            'category': 'cash',
-            'transaction': 'income',
-            'amount': 5000000,
-            'date': (now - timedelta(days=30)).isoformat()
-        },
-        {
-            'id': 2,
-            'description': 'Bayar Listrik',
-            'category': 'non cash',
-            'transaction': 'expenditure',
-            'amount': 750000,
-            'date': (now - timedelta(days=25)).isoformat()
-        },
-        {
-            'id': 3,
-            'description': 'Freelance Project',
-            'category': 'non cash',
-            'transaction': 'income',
-            'amount': 3000000,
-            'date': (now - timedelta(days=20)).isoformat()
-        },
-        {
-            'id': 4,
-            'description': 'Belanja Bulanan',
-            'category': 'cash',
-            'transaction': 'expenditure',
-            'amount': 1200000,
-            'date': (now - timedelta(days=15)).isoformat()
-        },
-        {
-            'id': 5,
-            'description': 'Investasi Saham',
-            'category': 'non cash',
-            'transaction': 'income',
-            'amount': 2000000,
-            'date': (now - timedelta(days=10)).isoformat()
-        }
-    ]
+    return redirect('/')
+
+@app.route('/backup')
+def backup_database():
+    """Create a backup of the database"""
+    try:
+        db_path = os.path.join(os.path.dirname(__file__), app.config['DATABASE'])
+        backup_path = f'cashflow_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+        
+        import shutil
+        shutil.copy2(db_path, backup_path)
+        
+        flash(f'Backup berhasil dibuat: {backup_path}', 'success')
+    except Exception as e:
+        flash(f'Error saat backup: {str(e)}', 'error')
     
-    session['transactions'] = sample_transactions
-    session['next_id'] = 6
-    
-    flash('Sample data berhasil ditambahkan', 'success')
     return redirect('/')
 
 @app.errorhandler(404)
@@ -600,20 +636,16 @@ def internal_server_error(e):
     flash('Terjadi kesalahan pada server', 'error')
     return redirect('/')
 
+# ========== INITIALIZATION ==========
 
-# ========== ERROR HANDLERS ==========
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('404.html'), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    session.clear()
-    return render_template('500.html'), 500
-
-# ========== MAIN ==========
-
-# ========== PRODUCTION CONFIG ==========
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    # Initialize database
+    with app.app_context():
+        init_database()
+    
+    print(f"CashFlow Pro starting on http://localhost:5050")
+    print(f"Database file: {app.config['DATABASE']}")
+    print(f"Press Ctrl+C to stop")
+    
+    # Run the app
+    app.run(debug=True, port=5050, host='0.0.0.0')
