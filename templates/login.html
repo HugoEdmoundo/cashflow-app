@@ -1,195 +1,85 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - CashFlow Pro</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .gradient-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
-            border-radius: 1rem;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .animate-fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-    </style>
-</head>
-<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-4xl animate-fade-in">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Left Column - Brand Info -->
-            <div class="glass-card p-8 rounded-2xl">
-                <div class="h-full flex flex-col justify-center">
-                    <div class="text-center mb-8">
-                        <div class="w-20 h-20 gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <i class="fas fa-chart-line text-white text-3xl"></i>
-                        </div>
-                        <h1 class="text-3xl font-bold text-gray-800 mb-2">CashFlow Pro</h1>
-                        <p class="text-gray-600">Manajemen Keuangan Modern</p>
-                    </div>
-                    
-                    <div class="space-y-6">
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-chart-pie text-blue-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800 mb-1">Analisis Lengkap</h3>
-                                <p class="text-sm text-gray-600">Pantau keuangan dengan grafik dan statistik real-time</p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-shield-alt text-green-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800 mb-1">Keamanan Data</h3>
-                                <p class="text-sm text-gray-600">Data Anda terlindungi dengan enkripsi terbaik</p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-mobile-alt text-purple-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800 mb-1">Responsif</h3>
-                                <p class="text-sm text-gray-600">Akses dari desktop, tablet, atau smartphone</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-8 pt-6 border-t border-gray-200">
-                        <p class="text-sm text-gray-500 text-center">
-                            Belum punya akun? 
-                            <a href="{{ url_for('register') }}" class="text-blue-600 font-medium hover:text-blue-800 ml-1">
-                                Daftar di sini
-                            </a>
-                        </p>
-                    </div>
+{% extends 'auth_base.html' %}
+
+{% block title %}Login - CashFlow Pro{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-md mx-auto">
+    <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <div class="text-center mb-8">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-chart-line text-white text-2xl"></i>
                 </div>
             </div>
-            
-            <!-- Right Column - Login Form -->
-            <div class="glass-card p-8 rounded-2xl">
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">Masuk ke Akun Anda</h2>
-                <p class="text-gray-600 mb-8">Silakan masuk untuk mengakses dashboard</p>
-                
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="p-4 rounded-lg mb-6 {% if category == 'success' %}bg-green-50 text-green-700 border border-green-200{% else %}bg-red-50 text-red-700 border border-red-200{% endif %}">
-                                <div class="flex items-center">
-                                    <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-3"></i>
-                                    <span>{{ message }}</span>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST" class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-user text-blue-500 mr-2"></i>Username
-                        </label>
-                        <input type="text" name="username" required 
-                               class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Masukkan username">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-lock text-blue-500 mr-2"></i>Password
-                        </label>
-                        <input type="password" name="password" required 
-                               class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Masukkan password">
-                    </div>
-                    
-                    <div class="flex items-center justify-between">
+            <h2 class="text-3xl font-bold text-gray-900">
+                CashFlow Pro
+            </h2>
+            <p class="mt-2 text-gray-600">
+                Sistem Manajemen Keuangan
+            </p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 rounded-lg bg-red-50 p-4">
                         <div class="flex items-center">
-                            <input type="checkbox" id="remember" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <label for="remember" class="ml-2 text-sm text-gray-600">Ingat saya</label>
-                        </div>
-                        <a href="#" class="text-sm text-blue-600 hover:text-blue-800">Lupa password?</a>
-                    </div>
-                    
-                    <button type="submit" 
-                            class="w-full gradient-primary text-white py-3 rounded-xl font-medium hover:shadow-lg transition-all duration-300">
-                        <i class="fas fa-sign-in-alt mr-2"></i> Masuk
-                    </button>
-                    
-                    <div class="relative my-6">
-                        <div class="absolute inset-0 flex items-center">
-                            <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-center text-sm">
-                            <span class="px-2 bg-white text-gray-500">Atau</span>
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-circle text-red-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700">{{ message }}</p>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="text-center">
-                        <p class="text-gray-600 text-sm">
-                            Butuh akun baru?
-                            <a href="{{ url_for('register') }}" class="text-blue-600 font-medium hover:text-blue-800 ml-1">
-                                Buat akun gratis
-                            </a>
-                        </p>
-                    </div>
-                </form>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form class="space-y-6" method="POST" action="{{ url_for('login') }}">
+            <div class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input id="username" name="username" type="text" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                           placeholder="Username">
+                </div>
                 
-                <div class="mt-8 text-center">
-                    <p class="text-xs text-gray-500">
-                        © 2024 CashFlow Pro. All rights reserved.
-                    </p>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input id="password" name="password" type="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                           placeholder="Password">
+                </div>
+            </div>
+
+            <button type="submit"
+                    class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                Masuk ke Akun
+            </button>
+            
+            <div class="text-center pt-4">
+                <p class="text-sm text-gray-600">
+                    Belum punya akun?
+                    <a href="{{ url_for('register') }}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200">
+                        Daftar di sini
+                    </a>
+                </p>
+            </div>
+        </form>
+        
+        <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p class="text-sm text-gray-600 mb-2 font-medium">Akun Demo:</p>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <span class="font-medium">Username:</span> admin
+                </div>
+                <div>
+                    <span class="font-medium">Password:</span> admin123
                 </div>
             </div>
         </div>
     </div>
-    
-    <script>
-        // Add animation to form elements
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('input');
-            inputs.forEach((input, index) => {
-                input.style.animationDelay = `${index * 0.1}s`;
-            });
-        });
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}

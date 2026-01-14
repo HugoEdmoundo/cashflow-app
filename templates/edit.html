@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <div class="card">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="p-6">
             <div class="mb-6">
                 <div class="flex justify-between items-center">
@@ -15,34 +15,29 @@
                         <i class="fas fa-times"></i>
                     </a>
                 </div>
-                <p class="text-sm text-gray-600 mt-1">
-                    ID: {{ data.id }} • 
-                    Tanggal: {{ data.transaction_date.strftime('%d/%m/%Y %H:%M') if data.transaction_date else 'N/A' }}
-                </p>
             </div>
             
             <!-- FORM EDIT -->
-            <form method="POST" action="{{ url_for('edit_transaction', id=data.id) }}" class="space-y-4">
+            <form method="POST" action="{{ url_for('edit_transaction', id=data.id) }}" class="space-y-6">
                 <!-- Description -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
-                    <input type="text" name="description" value="{{ data.description }}"
-                           class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           required>
+                    <input type="text" name="description" value="{{ data.description }}" required
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200">
                 </div>
                 
                 <!-- Category and Type -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
-                        <select name="category" class="w-full border border-gray-300 rounded-lg px-4 py-2.5">
+                        <select name="category" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200">
                             <option value="cash" {% if data.category == 'cash' %}selected{% endif %}>Cash</option>
                             <option value="non_cash" {% if data.category == 'non_cash' %}selected{% endif %}>Non-Cash</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Transaksi</label>
-                        <select name="transaction" class="w-full border border-gray-300 rounded-lg px-4 py-2.5">
+                        <select name="transaction" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200">
                             <option value="income" {% if data.transaction_type == 'income' %}selected{% endif %}>Pemasukan</option>
                             <option value="expenditure" {% if data.transaction_type == 'expenditure' %}selected{% endif %}>Pengeluaran</option>
                         </select>
@@ -52,46 +47,20 @@
                 <!-- Amount -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah (Rp)</label>
-                    <input type="number" step="0.01" name="amount" value="{{ data.amount }}" min="0"
-                           class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                           required>
+                    <input type="number" step="0.01" name="amount" value="{{ data.amount }}" min="0" required
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200">
                 </div>
                 
                 <!-- Action Buttons -->
-                <div class="flex justify-end gap-3 pt-6 border-t">
-                    <a href="{{ url_for('transactions') }}" class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                <div class="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                    <a href="{{ url_for('transactions') }}" class="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium">
                         Batal
                     </a>
-                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button type="submit" class="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium inline-flex items-center">
                         <i class="fas fa-save mr-2"></i> Update Transaksi
                     </button>
                 </div>
             </form>
-            
-            <!-- Alternative Form for Debugging -->
-            <!-- <div class="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <h4 class="text-sm font-medium text-yellow-800 mb-2">Jika form di atas tidak berfungsi:</h4>
-                <p class="text-xs text-yellow-700 mb-3">Coba gunakan form alternatif ini:</p>
-                <form method="POST" action="{{ url_for('update_transaction', id=data.id) }}" class="space-y-3">
-                    <div class="flex gap-2">
-                        <input type="text" name="description" value="{{ data.description }}" 
-                               class="flex-1 border border-gray-300 rounded px-3 py-1 text-sm" required>
-                        <select name="category" class="border border-gray-300 rounded px-3 py-1 text-sm">
-                            <option value="cash" {% if data.category == 'cash' %}selected{% endif %}>Cash</option>
-                            <option value="non_cash" {% if data.category == 'non_cash' %}selected{% endif %}>Non-Cash</option>
-                        </select>
-                        <select name="transaction" class="border border-gray-300 rounded px-3 py-1 text-sm">
-                            <option value="income" {% if data.transaction_type == 'income' %}selected{% endif %}>Income</option>
-                            <option value="expenditure" {% if data.transaction_type == 'expenditure' %}selected{% endif %}>Expenditure</option>
-                        </select>
-                        <input type="number" step="0.01" name="amount" value="{{ data.amount }}" min="0"
-                               class="w-32 border border-gray-300 rounded px-3 py-1 text-sm" required>
-                        <button type="submit" class="px-3 py-1 bg-green-600 text-white rounded text-sm">
-                            Update
-                        </button>
-                    </div>
-                </form>
-            </div> -->
         </div>
     </div>
 </div>

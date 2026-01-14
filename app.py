@@ -7,6 +7,7 @@ import sqlite3
 import pandas as pd
 import io
 import os
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = 'cashflow-pro-secret-key-2024-very-secure'
@@ -16,17 +17,16 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Timezone Indonesia
+TZ = ZoneInfo("Asia/Jakarta")
+
 # Initialize database
 def init_db():
     conn = sqlite3.connect('cashflow.db')
     c = conn.cursor()
     
-    # Drop tables if exist for fresh start
-    c.execute('DROP TABLE IF EXISTS transactions')
-    c.execute('DROP TABLE IF EXISTS users')
-    
-    # Create users table
-    c.execute('''CREATE TABLE users (
+    # Create users table if not exists
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT,
@@ -35,8 +35,8 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Create transactions table
-    c.execute('''CREATE TABLE transactions (
+    # Create transactions table if not exists
+    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         description TEXT NOT NULL,
@@ -47,22 +47,12 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users (id)
     )''')
     
-    # Create admin user
-    hashed_password = generate_password_hash('admin123')
-    c.execute("INSERT INTO users (username, email, full_name, password) VALUES (?, ?, ?, ?)",
-              ('admin', 'admin@cashflow.local', 'Administrator', hashed_password))
-    
-    # Add sample transactions for admin
-    sample_transactions = [
-        (1, 'Gaji Bulan Januari', 'cash', 'income', 10000000),
-        (1, 'Bayar Listrik', 'cash', 'expenditure', 500000),
-        (1, 'Transfer ke Tabungan', 'non_cash', 'expenditure', 2000000),
-        (1, 'Bonus Project', 'non_cash', 'income', 3000000),
-        (1, 'Belanja Bulanan', 'cash', 'expenditure', 1500000),
-    ]
-    
-    c.executemany("INSERT INTO transactions (user_id, description, category, transaction_type, amount) VALUES (?, ?, ?, ?, ?)",
-                  sample_transactions)
+    # Check if admin user exists
+    c.execute("SELECT id FROM users WHERE username = 'admin'")
+    if not c.fetchone():
+        hashed_password = generate_password_hash('admin123')
+        c.execute("INSERT INTO users (username, email, full_name, password) VALUES (?, ?, ?, ?)",
+                  ('admin', 'admin@cashflow.local', 'Administrator', hashed_password))
     
     conn.commit()
     conn.close()
@@ -119,8 +109,8 @@ def get_user_totals(user_id):
                  COALESCE(SUM(CASE WHEN transaction_type = 'expenditure' THEN amount ELSE 0 END), 0) as expense
                  FROM transactions WHERE user_id = ? AND category = 'cash' ''', (user_id,))
     cash = c.fetchone()
-    cash_income = cash['income']
-    cash_expense = cash['expense']
+    cash_income = cash['income'] or 0
+    cash_expense = cash['expense'] or 0
     cash_balance = cash_income - cash_expense
     
     # Non-cash
@@ -129,8 +119,8 @@ def get_user_totals(user_id):
                  COALESCE(SUM(CASE WHEN transaction_type = 'expenditure' THEN amount ELSE 0 END), 0) as expense
                  FROM transactions WHERE user_id = ? AND category = 'non_cash' ''', (user_id,))
     non_cash = c.fetchone()
-    non_cash_income = non_cash['income']
-    non_cash_expense = non_cash['expense']
+    non_cash_income = non_cash['income'] or 0
+    non_cash_expense = non_cash['expense'] or 0
     non_cash_balance = non_cash_income - non_cash_expense
     
     # Counts
@@ -158,34 +148,75 @@ def get_user_totals(user_id):
     }
 
 def get_chart_data(user_id, days=30):
+    conn = get_db_connection()
+    c = conn.cursor()
+    
     dates = []
     income_data = []
     expense_data = []
     balances = []
     
-    # Generate dummy data for 30 days
-    for i in range(days, 0, -1):
-        date = datetime.now() - timedelta(days=i)
-        dates.append(date.strftime('%d/%m'))
+    # Get data from database for last 30 days
+    end_date = datetime.now(TZ)
+    start_date = end_date - timedelta(days=days)
+    
+    for i in range(days):
+        current_date = start_date + timedelta(days=i)
+        date_str = current_date.strftime('%Y-%m-%d')
         
-        # Generate random data
-        import random
-        income = random.randint(500000, 3000000) if random.random() > 0.7 else 0
-        expense = random.randint(200000, 1500000) if random.random() > 0.6 else 0
+        # Get income for the day
+        c.execute('''SELECT COALESCE(SUM(amount), 0) as total
+                     FROM transactions 
+                     WHERE user_id = ? 
+                     AND transaction_type = 'income'
+                     AND DATE(transaction_date) = ?
+                     AND transaction_date >= ?''', 
+                  (user_id, date_str, start_date))
+        income = c.fetchone()['total']
         
+        # Get expense for the day
+        c.execute('''SELECT COALESCE(SUM(amount), 0) as total
+                     FROM transactions 
+                     WHERE user_id = ? 
+                     AND transaction_type = 'expenditure'
+                     AND DATE(transaction_date) = ?
+                     AND transaction_date >= ?''', 
+                  (user_id, date_str, start_date))
+        expense = c.fetchone()['total']
+        
+        dates.append(current_date.strftime('%d/%m'))
         income_data.append(income)
         expense_data.append(expense)
         
         # Calculate running balance
-        if i == days:
+        if i == 0:
             balances.append(income - expense)
         else:
             balances.append(balances[-1] + income - expense)
     
-    # Category data
+    # Category data from database
+    c.execute('''SELECT category, transaction_type, COALESCE(SUM(amount), 0) as total
+                 FROM transactions 
+                 WHERE user_id = ? 
+                 AND transaction_date >= ?
+                 GROUP BY category, transaction_type''',
+              (user_id, start_date))
+    
     category_labels = ['Cash Income', 'Cash Expense', 'Non-Cash Income', 'Non-Cash Expense']
-    category_values = [5000000, 2000000, 3000000, 1000000]
+    category_values = [0, 0, 0, 0]
     category_colors = ['#10B981', '#EF4444', '#3B82F6', '#8B5CF6']
+    
+    for row in c.fetchall():
+        if row['category'] == 'cash' and row['transaction_type'] == 'income':
+            category_values[0] = row['total']
+        elif row['category'] == 'cash' and row['transaction_type'] == 'expenditure':
+            category_values[1] = row['total']
+        elif row['category'] == 'non_cash' and row['transaction_type'] == 'income':
+            category_values[2] = row['total']
+        elif row['category'] == 'non_cash' and row['transaction_type'] == 'expenditure':
+            category_values[3] = row['total']
+    
+    conn.close()
     
     return {
         'dates': dates,
@@ -198,22 +229,45 @@ def get_chart_data(user_id, days=30):
     }
 
 def get_monthly_summary(user_id):
-    months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-    summary = []
+    conn = get_db_connection()
+    c = conn.cursor()
     
-    for i, month in enumerate(months[:6]):  # Last 6 months
-        income = (i + 1) * 1000000 + 500000
-        expense = (i + 1) * 500000 + 250000
-        balance = income - expense
+    # Get last 6 months data
+    end_date = datetime.now(TZ)
+    months_data = []
+    
+    for i in range(5, -1, -1):
+        month_start = (end_date.replace(day=1) - timedelta(days=30*i)).replace(day=1)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
         
-        summary.append({
-            'month': month,
+        # Get income for the month
+        c.execute('''SELECT COALESCE(SUM(amount), 0) as income
+                     FROM transactions 
+                     WHERE user_id = ? 
+                     AND transaction_type = 'income'
+                     AND transaction_date BETWEEN ? AND ?''',
+                  (user_id, month_start, month_end))
+        income = c.fetchone()['income']
+        
+        # Get expense for the month
+        c.execute('''SELECT COALESCE(SUM(amount), 0) as expense
+                     FROM transactions 
+                     WHERE user_id = ? 
+                     AND transaction_type = 'expenditure'
+                     AND transaction_date BETWEEN ? AND ?''',
+                  (user_id, month_start, month_end))
+        expense = c.fetchone()['expense']
+        
+        months_data.append({
+            'month': month_start.strftime('%b'),
+            'full_month': month_start.strftime('%B'),
             'income': income,
             'expense': expense,
-            'balance': balance
+            'balance': income - expense
         })
     
-    return summary
+    conn.close()
+    return months_data
 
 def get_recent_transactions(user_id, limit=5):
     conn = get_db_connection()
@@ -226,13 +280,17 @@ def get_recent_transactions(user_id, limit=5):
     
     transactions = []
     for row in c.fetchall():
+        # Convert UTC to Jakarta time
+        trans_date = datetime.fromisoformat(row['transaction_date'].replace('Z', '+00:00'))
+        jakarta_time = trans_date.astimezone(TZ)
+        
         transactions.append({
             'id': row['id'],
             'description': row['description'],
             'category': row['category'],
             'transaction_type': row['transaction_type'],
             'amount': row['amount'],
-            'display_date': row['transaction_date'][:16].replace('-', '/')
+            'display_date': jakarta_time.strftime('%d/%m/%Y %H:%M')
         })
     
     conn.close()
@@ -298,7 +356,8 @@ def register():
             conn.commit()
             flash('Registrasi berhasil! Silakan login.', 'success')
             return redirect(url_for('login'))
-        except:
+        except Exception as e:
+            print(f"Registration error: {e}")
             flash('Username sudah digunakan!', 'danger')
         finally:
             conn.close()
@@ -314,27 +373,32 @@ def dashboard():
         monthly_summary = get_monthly_summary(current_user.id)
         recent_transactions = get_recent_transactions(current_user.id)
         
+        # Get current Jakarta time
+        current_datetime = datetime.now(TZ)
+        
         return render_template('dashboard.html',
                              totals=totals,
                              chart_data=chart_data,
                              monthly_summary=monthly_summary,
                              recent_transactions=recent_transactions,
-                             current_year=datetime.now().year,
-                             current_date=datetime.now().strftime('%d %B %Y'),
-                             current_time=datetime.now().strftime('%H:%M'),
+                             current_year=current_datetime.year,
+                             current_date=current_datetime.strftime('%d %B %Y'),
+                             current_time=current_datetime.strftime('%H:%M'),
                              user_totals=totals,
                              format_rupiah=format_rupiah,
                              zip=zip)
     except Exception as e:
         print(f"Dashboard error: {e}")
         flash('Error loading dashboard', 'danger')
+        
+        current_datetime = datetime.now(TZ)
         return render_template('dashboard.html', 
                              totals={'total_transactions': 0, 'total_balance': 0},
                              chart_data={'dates': [], 'category_labels': []},
                              monthly_summary=[],
                              recent_transactions=[],
-                             current_date=datetime.now().strftime('%d %B %Y'),
-                             current_time=datetime.now().strftime('%H:%M'))
+                             current_date=current_datetime.strftime('%d %B %Y'),
+                             current_time=current_datetime.strftime('%H:%M'))
 
 @app.route('/transactions')
 @login_required
@@ -368,13 +432,17 @@ def transactions():
     c.execute(query, params)
     records = []
     for row in c.fetchall():
+        # Convert UTC to Jakarta time
+        trans_date = datetime.fromisoformat(row['transaction_date'].replace('Z', '+00:00'))
+        jakarta_time = trans_date.astimezone(TZ)
+        
         records.append({
             'id': row['id'],
             'description': row['description'],
             'category': row['category'],
             'transaction_type': row['transaction_type'],
             'amount': row['amount'],
-            'display_date': row['transaction_date'][:16].replace('-', '/')
+            'display_date': jakarta_time.strftime('%d/%m/%Y %H:%M')
         })
     
     totals = get_user_totals(current_user.id)
@@ -408,52 +476,49 @@ def add_transaction():
     flash('Transaksi berhasil ditambahkan!', 'success')
     return redirect(url_for('transactions'))
 
-@app.route('/edit_transaction/<int:id>')
+@app.route('/edit_transaction/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_transaction(id):
     conn = get_db_connection()
     c = conn.cursor()
     
-    c.execute('SELECT * FROM transactions WHERE id = ? AND user_id = ?', (id, current_user.id))
-    transaction = c.fetchone()
+    if request.method == 'GET':
+        c.execute('SELECT * FROM transactions WHERE id = ? AND user_id = ?', (id, current_user.id))
+        transaction = c.fetchone()
+        
+        if not transaction:
+            flash('Transaksi tidak ditemukan!', 'danger')
+            return redirect(url_for('transactions'))
+        
+        transaction_dict = {
+            'id': transaction['id'],
+            'description': transaction['description'],
+            'category': transaction['category'],
+            'transaction_type': transaction['transaction_type'],
+            'amount': transaction['amount'],
+            'transaction_date': transaction['transaction_date']
+        }
+        
+        conn.close()
+        
+        return render_template('edit.html', data=transaction_dict, format_rupiah=format_rupiah)
     
-    if not transaction:
-        flash('Transaksi tidak ditemukan!', 'danger')
+    else:  # POST request for update
+        description = request.form.get('description')
+        category = request.form.get('category')
+        transaction_type = request.form.get('transaction')
+        amount = float(request.form.get('amount', 0))
+        
+        c.execute('''UPDATE transactions 
+                     SET description = ?, category = ?, transaction_type = ?, amount = ?
+                     WHERE id = ? AND user_id = ?''',
+                  (description, category, transaction_type, amount, id, current_user.id))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Transaksi berhasil diperbarui!', 'success')
         return redirect(url_for('transactions'))
-    
-    transaction_dict = {
-        'id': transaction['id'],
-        'description': transaction['description'],
-        'category': transaction['category'],
-        'transaction_type': transaction['transaction_type'],
-        'amount': transaction['amount']
-    }
-    
-    conn.close()
-    
-    return render_template('edit.html', data=transaction_dict, format_rupiah=format_rupiah)
-
-@app.route('/update_transaction/<int:id>', methods=['POST'])
-@login_required
-def update_transaction(id):
-    description = request.form.get('description')
-    category = request.form.get('category')
-    transaction_type = request.form.get('transaction')
-    amount = float(request.form.get('amount', 0))
-    
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    c.execute('''UPDATE transactions 
-                 SET description = ?, category = ?, transaction_type = ?, amount = ?
-                 WHERE id = ? AND user_id = ?''',
-              (description, category, transaction_type, amount, id, current_user.id))
-    
-    conn.commit()
-    conn.close()
-    
-    flash('Transaksi berhasil diperbarui!', 'success')
-    return redirect(url_for('transactions'))
 
 @app.route('/delete_transaction/<int:id>')
 @login_required
@@ -492,13 +557,17 @@ def reports():
     c.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY transaction_date DESC', (current_user.id,))
     transactions_list = []
     for row in c.fetchall():
+        # Convert UTC to Jakarta time
+        trans_date = datetime.fromisoformat(row['transaction_date'].replace('Z', '+00:00'))
+        jakarta_time = trans_date.astimezone(TZ)
+        
         transactions_list.append({
             'id': row['id'],
             'description': row['description'],
             'category': row['category'],
             'transaction_type': row['transaction_type'],
             'amount': row['amount'],
-            'transaction_date': row['transaction_date']
+            'transaction_date': jakarta_time
         })
     
     totals = get_user_totals(current_user.id)
@@ -516,10 +585,13 @@ def reports():
     
     conn.close()
     
-    return render_template('report.html',
+    current_datetime = datetime.now(TZ)
+    
+    return render_template('reports.html',
                          transactions=transactions_list,
                          totals=totals,
                          stats=stats,
+                         current_date=current_datetime.strftime('%d %B %Y'),
                          format_rupiah=format_rupiah)
 
 @app.route('/export_excel')
@@ -548,7 +620,7 @@ def export_excel():
     
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now(TZ).strftime("%Y%m%d")}.xlsx'
     
     return response
 
@@ -567,33 +639,75 @@ def export_csv():
     
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now(TZ).strftime("%Y%m%d")}.csv'
     
     return response
 
-@app.route('/profile')
+@app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     conn = get_db_connection()
     c = conn.cursor()
     
+    if request.method == 'POST':
+        # Update user data
+        full_name = request.form.get('full_name')
+        email = request.form.get('email')
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        
+        # First, get current user data
+        c.execute('SELECT password FROM users WHERE id = ?', (current_user.id,))
+        user_data = c.fetchone()
+        
+        if new_password:
+            # Verify current password
+            if not check_password_hash(user_data['password'], current_password):
+                flash('Password saat ini salah!', 'danger')
+                return redirect(url_for('profile'))
+            
+            # Update with new password
+            hashed_password = generate_password_hash(new_password)
+            c.execute('''UPDATE users 
+                         SET full_name = ?, email = ?, password = ?
+                         WHERE id = ?''',
+                      (full_name, email, hashed_password, current_user.id))
+            flash('Profil dan password berhasil diperbarui!', 'success')
+        else:
+            # Update without password change
+            c.execute('''UPDATE users 
+                         SET full_name = ?, email = ?
+                         WHERE id = ?''',
+                      (full_name, email, current_user.id))
+            flash('Profil berhasil diperbarui!', 'success')
+        
+        conn.commit()
+    
+    # Get user data for display
     c.execute('SELECT * FROM users WHERE id = ?', (current_user.id,))
     user = c.fetchone()
+    
+    # Convert UTC to Jakarta time for created_at
+    created_date = datetime.fromisoformat(user['created_at'].replace('Z', '+00:00'))
+    jakarta_time = created_date.astimezone(TZ)
     
     user_data = {
         'username': user['username'],
         'email': user['email'],
         'full_name': user['full_name'],
-        'created_at': user['created_at'][:10]
+        'created_at': jakarta_time.strftime('%d %B %Y')
     }
     
     totals = get_user_totals(current_user.id)
     
     conn.close()
     
+    current_datetime = datetime.now(TZ)
+    
     return render_template('profile.html',
                          user_data=user_data,
                          user_totals=totals,
+                         current_date=current_datetime.strftime('%d %B %Y'),
                          format_rupiah=format_rupiah)
 
 @app.route('/logout')

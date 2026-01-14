@@ -7,10 +7,10 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Profile Header -->
-    <div class="glass-card p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
-            <div class="w-24 h-24 gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-                <i class="fas fa-user text-white text-3xl"></i>
+            <div class="w-20 h-20 bg-blue-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-user text-white text-2xl"></i>
             </div>
             <div class="flex-1">
                 <h2 class="text-2xl font-bold text-gray-800">{{ current_user.full_name or current_user.username }}</h2>
@@ -29,115 +29,123 @@
         </div>
     </div>
 
-    <!-- Account Information -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="glass-card p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Informasi Akun</h3>
-            <div class="space-y-4">
-                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                    <div>
-                        <p class="text-sm text-gray-600">Username</p>
-                        <p class="font-medium text-gray-800">{{ current_user.username }}</p>
-                    </div>
-                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-user text-blue-600"></i>
-                    </div>
+    <!-- Edit Profile Form -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">Edit Informasi Akun</h3>
+        <form method="POST" action="{{ url_for('profile') }}" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <input type="text" value="{{ current_user.username }}" 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-500" 
+                           disabled>
+                    <p class="text-xs text-gray-500 mt-1">Username tidak dapat diubah</p>
                 </div>
                 
-                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                    <div>
-                        <p class="text-sm text-gray-600">Email</p>
-                        <p class="font-medium text-gray-800">{{ current_user.email or 'Tidak diisi' }}</p>
-                    </div>
-                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-envelope text-green-600"></i>
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+                    <input type="text" name="full_name" value="{{ user_data.full_name }}"
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
+                           placeholder="Masukkan nama lengkap">
                 </div>
-                
-                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input type="email" name="email" value="{{ user_data.email }}"
+                       class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
+                       placeholder="email@contoh.com">
+            </div>
+            
+            <div class="border-t border-gray-200 pt-6">
+                <h4 class="text-lg font-semibold text-gray-800 mb-4">Ubah Password</h4>
+                <div class="space-y-4">
                     <div>
-                        <p class="text-sm text-gray-600">Nama Lengkap</p>
-                        <p class="font-medium text-gray-800">{{ current_user.full_name or 'Tidak diisi' }}</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password Saat Ini</label>
+                        <input type="password" name="current_password"
+                               class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
+                               placeholder="Masukkan password saat ini">
                     </div>
-                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-id-card text-purple-600"></i>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Password Baru</label>
+                            <input type="password" name="new_password"
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
+                                   placeholder="Masukkan password baru">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Konfirmasi Password Baru</label>
+                            <input type="password" name="confirm_password"
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors duration-200"
+                                   placeholder="Konfirmasi password baru">
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Account Statistics -->
-        <div class="glass-card p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Statistik Keuangan</h3>
-            <div class="space-y-4">
-                <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-blue-600 font-medium">Total Transaksi</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ user_totals.total_transactions }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-exchange-alt text-blue-600"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-green-600 font-medium">Total Saldo</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ format_rupiah(user_totals.total_balance) }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-wallet text-green-600"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="p-3 bg-gray-50 rounded-xl">
-                        <p class="text-xs text-gray-600">Total Pemasukan</p>
-                        <p class="text-lg font-bold text-green-600">{{ format_rupiah(user_totals.total_income) }}</p>
-                    </div>
-                    <div class="p-3 bg-gray-50 rounded-xl">
-                        <p class="text-xs text-gray-600">Total Pengeluaran</p>
-                        <p class="text-lg font-bold text-red-600">{{ format_rupiah(user_totals.total_expense) }}</p>
-                    </div>
-                </div>
+            
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{{ url_for('dashboard') }}" class="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium">
+                    Batal
+                </a>
+                <button type="submit" class="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
+                    Simpan Perubahan
+                </button>
             </div>
-        </div>
+        </form>
     </div>
 
-    <!-- Account Actions -->
-    <div class="glass-card p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Tindakan Akun</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a href="{{ url_for('transactions') }}" 
-               class="p-4 border border-blue-200 rounded-xl hover:bg-blue-50 transition-colors duration-200 text-center">
-                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-exchange-alt text-blue-600"></i>
+    <!-- Account Statistics -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">Statistik Keuangan</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="p-4 bg-blue-50 rounded-xl">
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-exchange-alt text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-blue-600 font-medium">Total Transaksi</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ user_totals.total_transactions }}</p>
+                    </div>
                 </div>
-                <p class="font-medium text-gray-800">Lihat Transaksi</p>
-                <p class="text-sm text-gray-600 mt-1">Kelola catatan keuangan</p>
-            </a>
+            </div>
             
-            <a href="{{ url_for('reports') }}" 
-               class="p-4 border border-green-200 rounded-xl hover:bg-green-50 transition-colors duration-200 text-center">
-                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-chart-pie text-green-600"></i>
+            <div class="p-4 bg-green-50 rounded-xl">
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-wallet text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-green-600 font-medium">Total Saldo</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ format_rupiah(user_totals.total_balance) }}</p>
+                    </div>
                 </div>
-                <p class="font-medium text-gray-800">Lihat Laporan</p>
-                <p class="text-sm text-gray-600 mt-1">Analisis dan ekspor data</p>
-            </a>
+            </div>
             
-            <a href="{{ url_for('logout') }}" 
-               class="p-4 border border-red-200 rounded-xl hover:bg-red-50 transition-colors duration-200 text-center">
-                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-sign-out-alt text-red-600"></i>
+            <div class="p-4 bg-purple-50 rounded-xl">
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-arrow-down text-purple-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-purple-600 font-medium">Total Pemasukan</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ format_rupiah(user_totals.total_income) }}</p>
+                    </div>
                 </div>
-                <p class="font-medium text-gray-800">Keluar</p>
-                <p class="text-sm text-gray-600 mt-1">Logout dari akun</p>
-            </a>
+            </div>
+            
+            <div class="p-4 bg-red-50 rounded-xl">
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-arrow-up text-red-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-red-600 font-medium">Total Pengeluaran</p>
+                        <p class="text-2xl font-bold text-gray-800">{{ format_rupiah(user_totals.total_expense) }}</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
