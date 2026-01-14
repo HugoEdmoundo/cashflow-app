@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  cashflow:
+    image: python:3.9-slim
+    container_name: cashflow-app
+    ports:
+      - "5050:5050"
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      sh -c "pip install -r requirements.txt && python app.py"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development

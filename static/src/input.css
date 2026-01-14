@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+    font-family: 'Inter', sans-serif;
+}
+
+.glass-card {
+    @apply bg-white/90 backdrop-blur-sm border border-white/20 shadow-lg rounded-2xl;
+}
+
+.gradient-primary {
+    @apply bg-gradient-to-br from-blue-500 to-purple-600;
+}
+
+.gradient-success {
+    @apply bg-gradient-to-br from-green-500 to-emerald-600;
+}
+
+.gradient-warning {
+    @apply bg-gradient-to-br from-yellow-500 to-orange-600;
+}
+
+.gradient-danger {
+    @apply bg-gradient-to-br from-red-500 to-pink-600;
+}
+
+.gradient-purple {
+    @apply bg-gradient-to-br from-purple-500 to-pink-600;
+}
+
+.stat-card {
+    @apply relative overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+}
+
+.transaction-item {
+    @apply transition-all duration-200 hover:shadow-md hover:scale-[1.01];
+}
+
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar.active {
+    transform: translateX(0);
+}
+
+.main-content {
+    margin-left: 0;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    @apply bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen;
+}
+
+@media (min-width: 1024px) {
+    .sidebar {
+        transform: translateX(0);
+    }
+    .main-content {
+        margin-left: 260px;
+    }
+}
+
+.sidebar-overlay {
+    @apply fixed inset-0 bg-black/40 z-40 lg:hidden hidden backdrop-blur-sm;
+}
+
+.sidebar-overlay.active {
+    @apply block;
+}
+
+.chart-container {
+    position: relative;
+    height: 280px;
+    width: 100%;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+}

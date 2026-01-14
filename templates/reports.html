@@ -1,228 +1,417 @@
 {% extends 'base.html' %}
 
 {% block title %}Laporan - CashFlow Pro{% endblock %}
-{% block page_title %}Laporan Keuangan{% endblock %}
-{% block page_subtitle %}Generate dan ekspor laporan keuangan{% endblock %}
+{% block page_title %}Laporan & Analisis Keuangan{% endblock %}
+{% block page_subtitle %}Analisis mendalam dan ekspor data keuangan{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800">Laporan & Ekspor</h1>
-            <p class="text-gray-600">{{ total_count }} transaksi tersedia untuk dilaporkan</p>
-        </div>
-        <a href="/" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 inline-flex items-center">
-            <i class="fas fa-arrow-left mr-2"></i> Kembali
-        </a>
-    </div>
-
-    {% if total_count > 0 %}
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card">
-            <div class="p-4">
-                <p class="text-sm text-gray-500 mb-1">Saldo Cash</p>
-                <p class="text-xl font-bold text-blue-600">Rp {{ "{:,.0f}".format(cash_balance) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ cash_count }} transaksi</p>
+    <div class="glass-card p-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Analisis & Laporan</h1>
+                <p class="text-gray-600">Insight mendalam dari {{ totals.total_transactions }} transaksi keuangan</p>
             </div>
-        </div>
-        <div class="card">
-            <div class="p-4">
-                <p class="text-sm text-gray-500 mb-1">Saldo Non-Cash</p>
-                <p class="text-xl font-bold text-purple-600">Rp {{ "{:,.0f}".format(non_cash_balance) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ non_cash_count }} transaksi</p>
-            </div>
-        </div>
-        <div class="card">
-            <div class="p-4">
-                <p class="text-sm text-gray-500 mb-1">Total Saldo</p>
-                <p class="text-xl font-bold text-green-600">Rp {{ "{:,.0f}".format(total_balance) }}</p>
-                <p class="text-xs text-gray-500 mt-1">Total semua saldo</p>
-            </div>
-        </div>
-        <div class="card">
-            <div class="p-4">
-                <p class="text-sm text-gray-500 mb-1">Total Transaksi</p>
-                <p class="text-xl font-bold text-gray-800">{{ total_count }}</p>
-                <p class="text-xs text-gray-500 mt-1">Cash: {{ cash_count }} • Non-Cash: {{ non_cash_count }}</p>
+            <div class="flex items-center space-x-3">
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Periode Analisis</p>
+                    <p class="text-sm font-medium text-gray-800">{{ current_date }}</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Export Options -->
+    <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Excel Export -->
-        <div class="card">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-white"></i>
+                </div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-600">
+                    Cash
+                </span>
+            </div>
+            <h3 class="text-2xl font-bold text-blue-600 mb-1">{{ format_rupiah(totals.cash_balance) }}</h3>
+            <p class="text-sm text-gray-600 mb-2">Saldo Cash</p>
+            <div class="text-xs text-gray-500">
+                {{ totals.cash_count }} transaksi • {{ format_rupiah(totals.cash_income) }} pemasukan
+            </div>
+        </div>
+        
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 gradient-purple rounded-xl flex items-center justify-center">
+                    <i class="fas fa-credit-card text-white"></i>
+                </div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-purple-100 text-purple-600">
+                    Non-Cash
+                </span>
+            </div>
+            <h3 class="text-2xl font-bold text-purple-600 mb-1">{{ format_rupiah(totals.non_cash_balance) }}</h3>
+            <p class="text-sm text-gray-600 mb-2">Saldo Non-Cash</p>
+            <div class="text-xs text-gray-500">
+                {{ totals.non_cash_count }} transaksi • {{ format_rupiah(totals.non_cash_income) }} pemasukan
+            </div>
+        </div>
+        
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 gradient-success rounded-xl flex items-center justify-center">
+                    <i class="fas fa-arrow-down text-white"></i>
+                </div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-600">
+                    Pemasukan
+                </span>
+            </div>
+            <h3 class="text-2xl font-bold text-green-600 mb-1">{{ format_rupiah(totals.total_income) }}</h3>
+            <p class="text-sm text-gray-600 mb-2">Total Pemasukan</p>
+            <div class="text-xs text-gray-500">
+                Cash: {{ format_rupiah(totals.cash_income) }} • Non-Cash: {{ format_rupiah(totals.non_cash_income) }}
+            </div>
+        </div>
+        
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="w-12 h-12 gradient-danger rounded-xl flex items-center justify-center">
+                    <i class="fas fa-arrow-up text-white"></i>
+                </div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-600">
+                    Pengeluaran
+                </span>
+            </div>
+            <h3 class="text-2xl font-bold text-red-600 mb-1">{{ format_rupiah(totals.total_expense) }}</h3>
+            <p class="text-sm text-gray-600 mb-2">Total Pengeluaran</p>
+            <div class="text-xs text-gray-500">
+                Cash: {{ format_rupiah(totals.cash_expense) }} • Non-Cash: {{ format_rupiah(totals.non_cash_expense) }}
+            </div>
+        </div>
+    </div>
+
+    {% if totals.total_transactions > 0 %}
+    <!-- Export Options -->
+    <div class="glass-card p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">Ekspor Data</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{{ url_for('export_excel') }}" 
+               class="group p-5 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl hover:shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                         <i class="fas fa-file-excel text-green-600 text-xl"></i>
                     </div>
-                    <span class="text-xs text-gray-500">.xlsx</span>
+                    <span class="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">.xlsx</span>
                 </div>
-                <h3 class="font-semibold text-gray-800 mb-2">Export Excel</h3>
-                <p class="text-gray-600 text-sm mb-4">Ekspor data transaksi ke format Excel dengan 2 sheet</p>
-                <a href="/export/excel" class="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg inline-flex items-center justify-center text-sm">
-                    <i class="fas fa-download mr-2"></i> Download Excel
-                </a>
-            </div>
-        </div>
-
-        <!-- CSV Export -->
-        <div class="card">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <h4 class="font-semibold text-gray-800 mb-2">Export Excel</h4>
+                <p class="text-sm text-gray-600 mb-3">Format spreadsheet dengan grafik</p>
+                <span class="text-sm font-medium text-green-600 inline-flex items-center">
+                    Download <i class="fas fa-arrow-down ml-2 text-xs"></i>
+                </span>
+            </a>
+            
+            <a href="{{ url_for('export_csv') }}" 
+               class="group p-5 bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl hover:shadow-lg transition-all duration-300">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                         <i class="fas fa-file-csv text-blue-600 text-xl"></i>
                     </div>
-                    <span class="text-xs text-gray-500">.csv</span>
+                    <span class="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">.csv</span>
                 </div>
-                <h3 class="font-semibold text-gray-800 mb-2">Export CSV</h3>
-                <p class="text-gray-600 text-sm mb-4">Ekspor data mentah ke format CSV untuk analisis</p>
-                <a href="/export/csv" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg inline-flex items-center justify-center text-sm">
-                    <i class="fas fa-download mr-2"></i> Download CSV
-                </a>
-            </div>
-        </div>
-
-        <!-- Summary Stats -->
-        <div class="card">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-chart-pie text-purple-600 text-xl"></i>
+                <h4 class="font-semibold text-gray-800 mb-2">Export CSV</h4>
+                <p class="text-sm text-gray-600 mb-3">Data mentah untuk analisis lanjutan</p>
+                <span class="text-sm font-medium text-blue-600 inline-flex items-center">
+                    Download <i class="fas fa-arrow-down ml-2 text-xs"></i>
+                </span>
+            </a>
+            
+            <button onclick="window.print()" 
+               class="group p-5 bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-300 text-left">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-print text-gray-600 text-xl"></i>
                     </div>
-                    <span class="text-xs text-gray-500">Stats</span>
+                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">Print</span>
                 </div>
-                <h3 class="font-semibold text-gray-800 mb-2">Statistik</h3>
-                <div class="space-y-2 text-sm mb-4">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Pemasukan:</span>
-                        <span class="font-medium text-green-600">Rp {{ "{:,.0f}".format(total_income) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Pengeluaran:</span>
-                        <span class="font-medium text-red-600">Rp {{ "{:,.0f}".format(total_expense) }}</span>
-                    </div>
-                    <div class="pt-2 border-t">
-                        <div class="flex justify-between">
-                            <span class="font-medium">Net:</span>
-                            <span class="font-bold {% if (total_income - total_expense) >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                                Rp {{ "{:,.0f}".format(total_income - total_expense) }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <button onclick="window.print()" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2.5 rounded-lg inline-flex items-center justify-center text-sm">
-                    <i class="fas fa-print mr-2"></i> Cetak Laporan
-                </button>
-            </div>
-        </div>
-
-        <!-- Quick Info -->
-        <div class="card">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-info-circle text-orange-600 text-xl"></i>
-                    </div>
-                    <span class="text-xs text-gray-500">Info</span>
-                </div>
-                <h3 class="font-semibold text-gray-800 mb-2">Informasi</h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex items-center">
-                        <i class="fas fa-calendar text-gray-400 mr-2"></i>
-                        <span>Periode: All Time</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-exchange-alt text-gray-400 mr-2"></i>
-                        <span>Transaksi: {{ total_count }}</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-database text-gray-400 mr-2"></i>
-                        <span>Update: {{ current_time }}</span>
-                    </div>
-                </div>
-                <div class="mt-6 pt-4 border-t">
-                    <a href="/transactions" class="w-full border border-gray-300 text-gray-700 py-2.5 rounded-lg inline-flex items-center justify-center text-sm hover:bg-gray-50">
-                        <i class="fas fa-edit mr-2"></i> Kelola Data
-                    </a>
-                </div>
-            </div>
+                <h4 class="font-semibold text-gray-800 mb-2">Cetak Laporan</h4>
+                <p class="text-sm text-gray-600 mb-3">Versi cetak untuk dokumentasi</p>
+                <span class="text-sm font-medium text-gray-600 inline-flex items-center">
+                    Print Preview <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                </span>
+            </button>
         </div>
     </div>
 
-    <!-- Distribution -->
+    <!-- Analytics Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Distribusi Kategori</h3>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-sm text-gray-600">Cash ({{ cash_count }})</span>
-                            <span class="text-sm font-medium">{{ (cash_count/total_count*100)|round(1) if total_count > 0 else 0 }}%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full" style="width: {{ (cash_count/total_count*100) if total_count > 0 else 0 }}%"></div>
-                        </div>
+        <div class="glass-card p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Distribusi Transaksi</h3>
+                <div class="flex space-x-2">
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-600">Cash</span>
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-purple-100 text-purple-600">Non-Cash</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="distributionChart"></canvas>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="p-3 bg-blue-50 rounded-lg">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-blue-700">Cash</span>
+                        <span class="text-sm font-bold text-blue-700">{{ stats.cash_ratio|round(1) }}%</span>
                     </div>
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <span class="text-sm text-gray-600">Non-Cash ({{ non_cash_count }})</span>
-                            <span class="text-sm font-medium">{{ (non_cash_count/total_count*100)|round(1) if total_count > 0 else 0 }}%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-purple-500 h-2 rounded-full" style="width: {{ (non_cash_count/total_count*100) if total_count > 0 else 0 }}%"></div>
-                        </div>
+                    <div class="text-xs text-blue-600">{{ totals.cash_count }} transaksi</div>
+                </div>
+                <div class="p-3 bg-purple-50 rounded-lg">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-purple-700">Non-Cash</span>
+                        <span class="text-sm font-bold text-purple-700">{{ stats.non_cash_ratio|round(1) }}%</span>
                     </div>
+                    <div class="text-xs text-purple-600">{{ totals.non_cash_count }} transaksi</div>
                 </div>
             </div>
         </div>
         
-        <div class="card">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Ringkasan Keuangan</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Rata-rata Pemasukan</span>
-                        <span class="font-medium text-green-600">
-                            Rp {{ "{:,.0f}".format(total_income/cash_count if cash_count > 0 else 0) }}
-                        </span>
+        <div class="glass-card p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Rasio Keuangan</h3>
+                <div class="flex space-x-2">
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-600">Pemasukan</span>
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-600">Pengeluaran</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="ratioChart"></canvas>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="p-3 bg-green-50 rounded-lg">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-green-700">Pemasukan</span>
+                        <span class="text-sm font-bold text-green-700">{{ stats.income_ratio|round(1) }}%</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Rata-rata Pengeluaran</span>
-                        <span class="font-medium text-red-600">
-                            Rp {{ "{:,.0f}".format(total_expense/non_cash_count if non_cash_count > 0 else 0) }}
-                        </span>
+                    <div class="text-xs text-green-600">{{ format_rupiah(totals.total_income) }}</div>
+                </div>
+                <div class="p-3 bg-red-50 rounded-lg">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-red-700">Pengeluaran</span>
+                        <span class="text-sm font-bold text-red-700">{{ stats.expense_ratio|round(1) }}%</span>
                     </div>
-                    <div class="pt-3 border-t">
-                        <div class="flex justify-between">
-                            <span class="font-medium">Rasio Pemasukan/Pengeluaran</span>
-                            <span class="font-bold {% if total_income >= total_expense %}text-green-600{% else %}text-red-600{% endif %}">
-                                {{ (total_income/total_expense)|round(2) if total_expense > 0 else '∞' }}:1
-                            </span>
-                        </div>
-                    </div>
+                    <div class="text-xs text-red-600">{{ format_rupiah(totals.total_expense) }}</div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Data Preview -->
+    <div class="glass-card overflow-hidden">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Pratinjau Data Transaksi</h3>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm text-gray-600">{{ totals.total_transactions }} total transaksi</span>
+                    <a href="{{ url_for('transactions') }}" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center">
+                        Lihat semua <i class="fas fa-chevron-right ml-1 text-xs"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left p-4 text-sm font-semibold text-gray-700">Tanggal</th>
+                            <th class="text-left p-4 text-sm font-semibold text-gray-700">Deskripsi</th>
+                            <th class="text-left p-4 text-sm font-semibold text-gray-700">Kategori</th>
+                            <th class="text-left p-4 text-sm font-semibold text-gray-700">Tipe</th>
+                            <th class="text-left p-4 text-sm font-semibold text-gray-700">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for transaction in transactions[:10] %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                            <td class="p-4">
+                                <div class="text-sm font-medium text-gray-800">{{ transaction.transaction_date.strftime('%d/%m/%Y') }}</div>
+                                <div class="text-xs text-gray-500">{{ transaction.transaction_date.strftime('%H:%M') }}</div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-medium text-gray-800">{{ transaction.description }}</div>
+                                <div class="text-xs text-gray-500">ID: {{ transaction.id }}</div>
+                            </td>
+                            <td class="p-4">
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium
+                                    {% if transaction.category == 'cash' %}bg-blue-100 text-blue-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ 'Cash' if transaction.category == 'cash' else 'Non-Cash' }}
+                                </span>
+                            </td>
+                            <td class="p-4">
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium
+                                    {% if transaction.transaction_type == 'income' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    <i class="fas {% if transaction.transaction_type == 'income' %}fa-arrow-down{% else %}fa-arrow-up{% endif %} mr-1.5"></i>
+                                    {{ 'Pemasukan' if transaction.transaction_type == 'income' else 'Pengeluaran' }}
+                                </span>
+                            </td>
+                            <td class="p-4">
+                                <div class="text-lg font-bold {% if transaction.transaction_type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
+                                    {{ format_rupiah(transaction.amount) }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-gray-100 text-center">
+                <p class="text-sm text-gray-600">Menampilkan 10 dari {{ totals.total_transactions }} transaksi terbaru</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="glass-card p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">Statistik Ringkasan</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl">
+                <div class="text-4xl font-bold text-blue-600 mb-2">
+                    {% if totals.total_transactions > 0 %}
+                    {{ (totals.cash_count / totals.total_transactions * 100)|round(1) }}
+                    {% else %}0{% endif %}%
+                </div>
+                <p class="text-sm text-blue-700 font-medium">Rasio Cash</p>
+                <p class="text-xs text-blue-600 mt-1">{{ totals.cash_count }} transaksi</p>
+            </div>
+            
+            <div class="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl">
+                <div class="text-4xl font-bold text-green-600 mb-2">
+                    {% if totals.total_income > 0 %}
+                    {{ ((totals.total_income - totals.total_expense) / totals.total_income * 100)|round(1) }}
+                    {% else %}0{% endif %}%
+                </div>
+                <p class="text-sm text-green-700 font-medium">Profit Margin</p>
+                <p class="text-xs text-green-600 mt-1">{{ format_rupiah(totals.total_income - totals.total_expense) }} net</p>
+            </div>
+            
+            <div class="text-center p-5 bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl">
+                <div class="text-4xl font-bold text-purple-600 mb-2">
+                    {% if totals.total_transactions > 0 %}
+                    {{ (totals.non_cash_count / totals.total_transactions * 100)|round(1) }}
+                    {% else %}0{% endif %}%
+                </div>
+                <p class="text-sm text-purple-700 font-medium">Rasio Non-Cash</p>
+                <p class="text-xs text-purple-600 mt-1">{{ totals.non_cash_count }} transaksi</p>
+            </div>
+        </div>
+    </div>
+    
     {% else %}
     <!-- Empty State -->
-    <div class="card">
+    <div class="glass-card">
         <div class="p-12 text-center">
-            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-file-export text-gray-400 text-2xl"></i>
+            <div class="w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-chart-pie text-blue-400 text-3xl"></i>
             </div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">Belum Ada Data untuk Laporan</h3>
-            <p class="text-gray-600 mb-6">Tambahkan beberapa transaksi terlebih dahulu untuk menghasilkan laporan</p>
-            <a href="/transactions" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center">
-                <i class="fas fa-plus mr-2"></i> Tambah Transaksi
+            <h3 class="text-2xl font-bold text-gray-800 mb-3">Belum Ada Data untuk Laporan</h3>
+            <p class="text-gray-600 mb-6 max-w-md mx-auto">Tambahkan beberapa transaksi terlebih dahulu untuk melihat analisis dan statistik keuangan yang mendalam.</p>
+            <a href="{{ url_for('transactions') }}" class="gradient-primary text-white px-8 py-3 rounded-xl hover:shadow-lg inline-flex items-center font-medium transition-all duration-300">
+                <i class="fas fa-plus mr-2"></i> Mulai Tambah Transaksi
             </a>
         </div>
     </div>
     {% endif %}
 </div>
+
+{% if totals.total_transactions > 0 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Distribution Chart
+    const distCtx = document.getElementById('distributionChart').getContext('2d');
+    new Chart(distCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Cash', 'Non-Cash'],
+            datasets: [{
+                data: [{{ stats.cash_ratio }}, {{ stats.non_cash_ratio }}],
+                backgroundColor: ['#3B82F6', '#8B5CF6'],
+                borderWidth: 0,
+                borderRadius: 10,
+                spacing: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Ratio Chart
+    const ratioCtx = document.getElementById('ratioChart').getContext('2d');
+    new Chart(ratioCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Pemasukan', 'Pengeluaran'],
+            datasets: [{
+                data: [{{ stats.income_ratio }}, {{ stats.expense_ratio }}],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed.y + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    
+    // Animate stats cards
+    const statCards = document.querySelectorAll('.glass-card');
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+    });
+});
+</script>
+{% endif %}
 {% endblock %}
