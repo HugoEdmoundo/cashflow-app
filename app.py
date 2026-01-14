@@ -22,7 +22,7 @@ TZ = ZoneInfo("Asia/Jakarta")
 
 # Initialize database
 def init_db():
-    conn = sqlite3.connect('cashflow.db')
+    conn = sqlite3.connect('/home/nawaaa/cashflow-app/database.db')
     c = conn.cursor()
     
     # Create users table if not exists
