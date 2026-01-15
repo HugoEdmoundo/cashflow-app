@@ -36,27 +36,18 @@ def get_db():
 def init_db():
     conn = get_db()
     c = conn.cursor()
-<<<<<<< HEAD
     
     # Create users table if not exists
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-=======
-
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS users (
->>>>>>> 6224707caeda6f06ee909e98ac5e83549f5827c4
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT,
         password TEXT NOT NULL,
         full_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
+    )""")
 
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
+    c.execute("""CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         description TEXT NOT NULL,
@@ -65,8 +56,7 @@ def init_db():
         amount REAL NOT NULL,
         transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id)
-    )
-    """)
+    )""")
 
     c.execute("SELECT id FROM users WHERE username = ?", ('admin',))
     if not c.fetchone():
