@@ -26,6 +26,7 @@ def init_db():
     c = conn.cursor()
     
     # Create users table if not exists
+    
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -449,11 +450,16 @@ def transactions():
     
     conn.close()
     
+    # Get current Jakarta time - TAMBAHKAN INI
+    current_datetime = datetime.now(TZ)
+    
     return render_template('transactions.html',
                          records=records,
                          totals=totals,
                          filters={'category': category, 'type': trans_type, 'search': search},
-                         format_rupiah=format_rupiah)
+                         format_rupiah=format_rupiah,
+                         current_date=current_datetime.strftime('%d %B %Y'),
+                         current_time=current_datetime.strftime('%H:%M'))
 
 @app.route('/add_transaction', methods=['POST'])
 @login_required
@@ -592,6 +598,7 @@ def reports():
                          totals=totals,
                          stats=stats,
                          current_date=current_datetime.strftime('%d %B %Y'),
+                         current_time=current_datetime.strftime('%H:%M'),
                          format_rupiah=format_rupiah)
 
 @app.route('/export_excel')
@@ -708,6 +715,7 @@ def profile():
                          user_data=user_data,
                          user_totals=totals,
                          current_date=current_datetime.strftime('%d %B %Y'),
+                         current_time=current_datetime.strftime('%H:%M'),
                          format_rupiah=format_rupiah)
 
 @app.route('/logout')
