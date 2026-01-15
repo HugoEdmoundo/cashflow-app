@@ -9,35 +9,54 @@ import io
 import os
 from zoneinfo import ZoneInfo
 
+# =====================
+# APP CONFIG
+# =====================
 app = Flask(__name__)
 app.secret_key = 'cashflow-pro-secret-key-2024-very-secure'
 
-# Setup login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Timezone Indonesia
 TZ = ZoneInfo("Asia/Jakarta")
 
-# Initialize database
+# =====================
+# DATABASE CONFIG (WAJIB ABSOLUTE PATH)
+# =====================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'cashflow.db')
+
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+# =====================
+# INIT DATABASE
+# =====================
 def init_db():
-    conn = sqlite3.connect('cashflow.db')
+    conn = get_db()
     c = conn.cursor()
+<<<<<<< HEAD
     
     # Create users table if not exists
     
     c.execute('''CREATE TABLE IF NOT EXISTS users (
+=======
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+>>>>>>> 6224707caeda6f06ee909e98ac5e83549f5827c4
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT,
         password TEXT NOT NULL,
         full_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Create transactions table if not exists
-    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
+    )
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         description TEXT NOT NULL,
@@ -46,21 +65,26 @@ def init_db():
         amount REAL NOT NULL,
         transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id)
-    )''')
-    
-    # Check if admin user exists
-    c.execute("SELECT id FROM users WHERE username = 'admin'")
+    )
+    """)
+
+    c.execute("SELECT id FROM users WHERE username = ?", ('admin',))
     if not c.fetchone():
         hashed_password = generate_password_hash('admin123')
-        c.execute("INSERT INTO users (username, email, full_name, password) VALUES (?, ?, ?, ?)",
-                  ('admin', 'admin@cashflow.local', 'Administrator', hashed_password))
-    
+        c.execute(
+            "INSERT INTO users (username, email, full_name, password) VALUES (?, ?, ?, ?)",
+            ('admin', 'admin@cashflow.local', 'Administrator', hashed_password)
+        )
+
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully!")
 
-# Initialize database
-init_db()
+# =====================
+# RUN INIT DB (AMAN UNTUK PYTHONANYWHERE)
+# =====================
+with app.app_context():
+    init_db()
+
 
 # User model
 class User(UserMixin):
