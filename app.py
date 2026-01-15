@@ -732,6 +732,47 @@ def profile():
                          current_time=current_datetime.strftime('%H:%M'),
                          format_rupiah=format_rupiah)
 
+
+@app.route('/debug_db')
+@login_required
+def debug_db():
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    # Get all transactions
+    c.execute("SELECT * FROM transactions WHERE user_id = ?", (current_user.id,))
+    transactions = c.fetchall()
+    
+    # Calculate totals manually
+    cash_income = 0
+    cash_expense = 0
+    non_cash_income = 0
+    non_cash_expense = 0
+    
+    for t in transactions:
+        print(f"ID: {t['id']}, Cat: {t['category']}, Type: {t['transaction_type']}, Amt: {t['amount']}")
+        if t['category'] == 'cash':
+            if t['transaction_type'] == 'income':
+                cash_income += t['amount']
+            else:
+                cash_expense += t['amount']
+        elif t['category'] == 'non_cash':
+            if t['transaction_type'] == 'income':
+                non_cash_income += t['amount']
+            else:
+                non_cash_expense += t['amount']
+    
+    conn.close()
+    
+    return jsonify({
+        'total_transactions': len(transactions),
+        'cash_income': cash_income,
+        'cash_expense': cash_expense,
+        'non_cash_income': non_cash_income,
+        'non_cash_expense': non_cash_expense,
+        'calculated_non_cash_balance': non_cash_income - non_cash_expense
+    })                         
+
 @app.route('/logout')
 @login_required
 def logout():

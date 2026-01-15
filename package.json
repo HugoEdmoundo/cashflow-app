@@ -22,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/HugoEdmoundo/cashflow-app/issues"
   },
-  "homepage": "https://github.com/HugoEdmoundo/cashflow-app#readme"
+  "homepage": "https://github.com/HugoEdmoundo/cashflow-app#readme",
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  }
 }
